@@ -6,8 +6,10 @@ import java.lang.reflect.InvocationTargetException
 
 class Factory[CaseClassType, IdType](obj: CaseClassType,
 		typeTag: Type,
-		dao: FactoryDAO[CaseClassType, IdType], 
-		associations: Option[Vector[(String, String)]]) {
+		factoryDao: Option[FactoryDAO[CaseClassType, IdType]] = None, 
+		associations: Option[Vector[(String, String)]] = None) {
+
+	val createdObjects = scala.collection.mutable.ListBuffer[IdType]()
 
 	def build: CaseClassType = obj
 
@@ -21,31 +23,68 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
 	}
 
 	def create: CaseClassType = {
-		val finalObjectId = buildAssociationTree(dematerialise(obj))
-		dao.findById(finalObjectId)
+		factoryDao match {
+			case Some(dao) => {
+				val finalObjectId = buildAssociationTree(dematerialise(obj))
+				createdObjects += finalObjectId
+				dao.findById(finalObjectId)
+			}
+			case None => throw new UndefinedDaoException
+		}
 	}
 
 	def createWithValues(m: Map[String, Any]): CaseClassType = {
-		if(m != null) {
-			val mm = collection.mutable.Map(m.toSeq: _*)
-			val mappedObject = dematerialise(obj)
-			for(tup <- mm) mappedObject += tup
-			val finalObjectId = buildAssociationTree(mappedObject)
-			dao.findById(finalObjectId)
-		} else create
+		factoryDao match {
+			case Some(dao) => {
+				if(m != null) {
+					val mm = collection.mutable.Map(m.toSeq: _*)
+					val mappedObject = dematerialise(obj)
+					for(tup <- mm) mappedObject += tup
+					val finalObjectId = buildAssociationTree(mappedObject)
+					createdObjects += finalObjectId
+					dao.findById(finalObjectId)
+				} else create
+			}
+			case None => throw new UndefinedDaoException
+		}
+	}
+
+	def cleanCreatedObjects: Unit = {
+		while(!createdObjects.isEmpty) {
+			val newId = createdObjects.head
+			delete(newId)
+			createdObjects -= newId
+		}
+	}
+
+	def delete(id: IdType): Boolean = {
+		factoryDao match {
+			case Some(dao) => {
+				dao.deleteById(id) match {
+					case Some(a) => true
+					case None => throw new InvalidDataException
+				}
+			}
+			case None => throw new UndefinedDaoException
+		}
 	}
 
 	def buildAssociationTree(mappedObject: scala.collection.mutable.Map[String, Any]): IdType = {
-		associations match {
-			case None => dao.insert(materialise(mappedObject, obj))
-			case Some(a) => {
-				for(association <- a) {
-					val foreignObjectFactory = Factory.get(association._1)
-					val mappedForeignObject = dematerialise(foreignObjectFactory.build)
-					mappedObject += (association._2 -> foreignObjectFactory.buildAssociationTree(mappedForeignObject))
+		factoryDao match {
+			case Some(dao) => {
+				associations match {
+					case None => dao.insert(materialise(mappedObject, obj))
+					case Some(a) => {
+						for(association <- a) {
+							val foreignObjectFactory = Factory.get(association._1)
+							val mappedForeignObject = dematerialise(foreignObjectFactory.build)
+							mappedObject += (association._2 -> foreignObjectFactory.buildAssociationTree(mappedForeignObject))
+						}
+						dao.insert(materialise(mappedObject, obj))
+					}
 				}
-				dao.insert(materialise(mappedObject, obj))
 			}
+			case None => throw new UndefinedDaoException
 		}
 	}
 
@@ -82,14 +121,13 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
 }
 
 object Factory {
-	private val factories = scala.collection.mutable.Map[String, Factory[_, _]]()
+	private val factories = scala.collection.mutable.Map[String, Factory[_, Int]]()
 
-	def add(name: String, factory: Factory[_, _]) = {
-		if(factories.contains(name)) throw new DuplicateFactoryException("You already have a factory called " + name)
-		else factories += (name -> factory)
+	def add(name: String, factory: Factory[_, Int]) = {
+		if(!factories.contains(name)) factories += (name -> factory)
 	}
 
-	def get(name: String): Factory[_, _] = {
+	def get(name: String): Factory[_, Int] = {
 		if(factories.contains(name)) factories(name)
 		else throw new NoFactoryException
 	}
@@ -106,5 +144,15 @@ object Factory {
 			if(values == null) factories(name).create
 			else factories(name).createWithValues(values)
 		} else throw new NoFactoryException
+	}
+
+	def cleanFactory(name: String): Unit = {
+		if(factories.contains(name)) {
+			factories(name).cleanCreatedObjects
+		} else throw new NoFactoryException
+	}
+
+	def cleanAllFactories: Unit = {
+		for(a <- factories) a._2.cleanCreatedObjects
 	}
 }
