@@ -121,13 +121,13 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
 }
 
 object Factory {
-	private val factories = scala.collection.mutable.Map[String, Factory[_, Int]]()
+	private val factories = scala.collection.mutable.Map[String, Factory[_, _]]()
 
-	def add(name: String, factory: Factory[_, Int]) = {
+	def add(name: String, factory: Factory[_, _]) = {
 		if(!factories.contains(name)) factories += (name -> factory)
 	}
 
-	def get(name: String): Factory[_, Int] = {
+	def get(name: String): Factory[_, _] = {
 		if(factories.contains(name)) factories(name)
 		else throw new NoFactoryException
 	}

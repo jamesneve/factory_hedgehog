@@ -11,7 +11,8 @@ scalaVersion := "2.11.7"
 crossScalaVersions := Seq("2.10.4", "2.11.7")
 
 libraryDependencies ++= Seq(
-  "org.scalatest" %% "scalatest" % "2.2.1" % "test"
+  "org.scalatestplus" %% "play" % "1.4.0-M3",
+  "org.scalatest" %% "scalatest" % "2.2.1"
 )
 
 import bintray.Keys._
