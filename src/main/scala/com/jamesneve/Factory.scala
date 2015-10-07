@@ -42,6 +42,7 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
 					for(tup <- mm) mappedObject += tup
 					val finalObjectId = buildAssociationTree(mappedObject)
 					createdObjects += finalObjectId
+					println(finalObjectId)
 					dao.findById(finalObjectId)
 				} else create
 			}
@@ -50,6 +51,7 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
 	}
 
 	def cleanCreatedObjects: Unit = {
+		println(createdObjects)
 		while(!createdObjects.isEmpty) {
 			val newId = createdObjects.head
 			delete(newId)

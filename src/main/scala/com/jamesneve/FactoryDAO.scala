@@ -6,7 +6,7 @@ import scala.concurrent.duration.Duration
 
 class FactoryDAO[CaseClassType, IdType](insertDAO: CaseClassType => Future[IdType],
 		findByIdDAO: IdType => Future[Option[CaseClassType]],
-		deleteByIdDAO: Option[IdType => Future[IdType]] = None) {
+		deleteByIdDAO: Option[IdType => Future[Int]] = None) {
 
 	def insert(caseClass: CaseClassType): IdType = {
 		Await.result(insertDAO(caseClass), Duration.Inf)
@@ -19,7 +19,7 @@ class FactoryDAO[CaseClassType, IdType](insertDAO: CaseClassType => Future[IdTyp
 		}
 	}
 
-	def deleteById(id: IdType): Option[IdType] = {
+	def deleteById(id: IdType): Option[Int] = {
 		deleteByIdDAO match {
 			case Some(dao) => Some(Await.result(dao(id), Duration.Inf))
 			case None => None
