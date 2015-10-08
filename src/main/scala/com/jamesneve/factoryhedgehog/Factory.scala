@@ -11,9 +11,9 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
 
 	val createdObjects = scala.collection.mutable.ListBuffer[IdType]()
 
-	def build: CaseClassType = obj
+	private def build: CaseClassType = obj
 
-	def buildWithValues(m: Map[String, Any]): CaseClassType = {
+	private def buildWithValues(m: Map[String, Any]): CaseClassType = {
 		if(m != null) {
 			val mm = collection.mutable.Map(m.toSeq: _*)
 			val mappedObject = dematerialise(obj)
@@ -22,36 +22,38 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
 		} else build
 	}
 
-	def create: CaseClassType = {
+	private def insertMappedObject(obj: CaseClassType): CaseClassType = {
 		factoryDao match {
 			case Some(dao) => {
-				val finalObjectId = buildAssociationTree(dematerialise(obj))
-				createdObjects += finalObjectId
-				dao.findById(finalObjectId)
+				createdObjects += dao.insert(obj)
+				obj
 			}
 			case None => throw new UndefinedDaoException
 		}
 	}
 
-	def createWithValues(m: Map[String, Any]): CaseClassType = {
+	private def create: CaseClassType = {
+		factoryDao match {
+			case Some(dao) => buildAssociationTree(dematerialise(obj))
+			case None => throw new UndefinedDaoException
+		}
+	}
+
+	private def createWithValues(m: Map[String, Any]): CaseClassType = {
 		factoryDao match {
 			case Some(dao) => {
 				if(m != null) {
 					val mm = collection.mutable.Map(m.toSeq: _*)
 					val mappedObject = dematerialise(obj)
 					for(tup <- mm) mappedObject += tup
-					val finalObjectId = buildAssociationTree(mappedObject)
-					createdObjects += finalObjectId
-					println(finalObjectId)
-					dao.findById(finalObjectId)
+					buildAssociationTree(mappedObject)
 				} else create
 			}
 			case None => throw new UndefinedDaoException
 		}
 	}
 
-	def cleanCreatedObjects: Unit = {
-		println(createdObjects)
+	private def cleanCreatedObjects: Unit = {
 		while(!createdObjects.isEmpty) {
 			val newId = createdObjects.head
 			delete(newId)
@@ -59,7 +61,7 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
 		}
 	}
 
-	def delete(id: IdType): Boolean = {
+	private def delete(id: IdType): Boolean = {
 		factoryDao match {
 			case Some(dao) => {
 				dao.deleteById(id) match {
@@ -71,22 +73,17 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
 		}
 	}
 
-	def buildAssociationTree(mappedObject: scala.collection.mutable.Map[String, Any]): IdType = {
-		factoryDao match {
-			case Some(dao) => {
-				associations match {
-					case None => dao.insert(materialise(mappedObject, obj))
-					case Some(a) => {
-						for(association <- a) {
-							val foreignObjectFactory = Factory.get(association._1)
-							val mappedForeignObject = dematerialise(foreignObjectFactory.build)
-							mappedObject += (association._2 -> foreignObjectFactory.buildAssociationTree(mappedForeignObject))
-						}
-						dao.insert(materialise(mappedObject, obj))
-					}
+	private def buildAssociationTree(mappedObject: scala.collection.mutable.Map[String, Any]): CaseClassType = {
+		associations match {
+			case None => insertMappedObject(materialise(mappedObject, obj))
+			case Some(a) => {
+				for(association <- a) {
+					val foreignObjectFactory = Factory.get(association._1)
+					val mappedForeignObject = dematerialise(foreignObjectFactory.build)
+					mappedObject += (association._2 -> foreignObjectFactory.buildAssociationTree(mappedForeignObject))
 				}
+				insertMappedObject(materialise(mappedObject, obj))
 			}
-			case None => throw new UndefinedDaoException
 		}
 	}
 
