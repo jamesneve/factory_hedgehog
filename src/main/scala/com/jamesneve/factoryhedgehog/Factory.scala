@@ -1,4 +1,4 @@
-package com.jamesneve
+package com.jamesneve.factoryhedgehog
 
 import scala.reflect._
 import scala.reflect.runtime.universe._

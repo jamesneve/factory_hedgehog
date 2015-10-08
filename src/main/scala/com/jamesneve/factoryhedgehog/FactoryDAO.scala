@@ -1,4 +1,4 @@
-package com.jamesneve
+package com.jamesneve.factoryhedgehog
 
 import scala.concurrent.Future
 import scala.concurrent.Await

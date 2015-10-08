@@ -1,4 +1,4 @@
-package com.jamesneve
+package com.jamesneve.factoryhedgehog
 
 class NoFactoryException(msg: String = "No factory with that name exists.") extends RuntimeException(msg)
 class DBErrorException(msg: String = "There was a problem with inserting the record. Your DB table schema is probably inconsistent with the object you provided.") extends RuntimeException(msg)

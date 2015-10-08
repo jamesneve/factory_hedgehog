@@ -1,4 +1,4 @@
-package com.jamesneve
+package com.jamesneve.factoryhedgehog
 
 import org.scalatest._
 import org.scalatestplus.play._
