@@ -22,11 +22,12 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
 		} else build
 	}
 
-	private def insertMappedObject(obj: CaseClassType): CaseClassType = {
+	private def insertMappedObject(obj: CaseClassType): IdType = {
 		factoryDao match {
 			case Some(dao) => {
-				createdObjects += dao.insert(obj)
-				obj
+				val finalObjectId = dao.insert(obj)
+				createdObjects += finalObjectId
+				finalObjectId
 			}
 			case None => throw new UndefinedDaoException
 		}
@@ -34,7 +35,7 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
 
 	private def create: CaseClassType = {
 		factoryDao match {
-			case Some(dao) => buildAssociationTree(dematerialise(obj))
+			case Some(dao) => dao.findById(buildAssociationTree(dematerialise(obj)))
 			case None => throw new UndefinedDaoException
 		}
 	}
@@ -46,7 +47,7 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
 					val mm = collection.mutable.Map(m.toSeq: _*)
 					val mappedObject = dematerialise(obj)
 					for(tup <- mm) mappedObject += tup
-					buildAssociationTree(mappedObject)
+					dao.findById(buildAssociationTree(mappedObject))
 				} else create
 			}
 			case None => throw new UndefinedDaoException
@@ -73,11 +74,12 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
 		}
 	}
 
-	private def buildAssociationTree(mappedObject: scala.collection.mutable.Map[String, Any]): CaseClassType = {
+	def buildAssociationTree(mappedObject: scala.collection.mutable.Map[String, Any]): IdType = {
 		associations match {
 			case None => insertMappedObject(materialise(mappedObject, obj))
 			case Some(a) => {
 				for(association <- a) {
+					println(association)
 					val foreignObjectFactory = Factory.get(association._1)
 					val mappedForeignObject = dematerialise(foreignObjectFactory.build)
 					mappedObject += (association._2 -> foreignObjectFactory.buildAssociationTree(mappedForeignObject))
@@ -106,7 +108,11 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
 	    val constructorArgs = constructor.paramLists.flatten.map( (param: Symbol) => {
 	      val paramName = param.name.toString
 	      if(param.typeSignature <:< typeOf[Option[Any]]) {
-	        m.get(paramName).get
+	        val tentativeInsert = m.get(paramName).get
+	        tentativeInsert match {
+	        	case a: Option[_] => a
+	        	case b: Any => Some(b)
+	        }
 	      } else {
 	        m.get(paramName).getOrElse(throw new IllegalArgumentException("Map is missing required parameter named " + paramName))
 	      }
@@ -124,6 +130,7 @@ object Factory {
 
 	def add(name: String, factory: Factory[_, _]) = {
 		if(!factories.contains(name)) factories += (name -> factory)
+
 	}
 
 	def get(name: String): Factory[_, _] = {
