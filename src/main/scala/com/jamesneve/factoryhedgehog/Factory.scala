@@ -79,7 +79,6 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
 			case None => insertMappedObject(materialise(mappedObject, obj))
 			case Some(a) => {
 				for(association <- a) {
-					println(association)
 					val foreignObjectFactory = Factory.get(association._1)
 					val mappedForeignObject = dematerialise(foreignObjectFactory.build)
 					mappedObject += (association._2 -> foreignObjectFactory.buildAssociationTree(mappedForeignObject))
