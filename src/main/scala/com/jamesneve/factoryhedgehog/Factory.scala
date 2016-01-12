@@ -137,17 +137,17 @@ object Factory {
 		else throw new NoFactoryException
 	}
 
-	def build(name: String, values: Map[String, Any] = null) = {
+	def build[T: ClassTag](name: String, values: Map[String, Any] = null): T = {
 		if(factories.contains(name)) {
-			if(values == null) factories(name).build
-			else factories(name).buildWithValues(values)
+			if(values == null) factories(name).build.asInstanceOf[T]
+			else factories(name).buildWithValues(values).asInstanceOf[T]
 		} else throw new NoFactoryException
 	}
 
-	def create(name: String, values: Map[String, Any] = null) = {
+	def create[T: ClassTag](name: String, values: Map[String, Any] = null): T = {
 		if(factories.contains(name)) {
-			if(values == null) factories(name).create
-			else factories(name).createWithValues(values)
+			if(values == null) factories(name).create.asInstanceOf[T]
+			else factories(name).createWithValues(values).asInstanceOf[T]
 		} else throw new NoFactoryException
 	}
 

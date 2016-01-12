@@ -18,7 +18,7 @@ libraryDependencies ++= Seq(
 import bintray.Keys._
 
 lazy val commonSettings = Seq(
-  version := "0.1.8",
+  version := "1.0.0",
   organization := "com.jamesneve"
 )
 
