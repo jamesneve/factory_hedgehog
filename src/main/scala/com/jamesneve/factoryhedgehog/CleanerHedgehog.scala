@@ -5,7 +5,7 @@ import org.scalatestplus.play._
 import play.api.test._
 
 trait CleanerHedgehog extends Suite with BeforeAndAfterEach {
-  private def cleanDB = Factory.cleanAllFactories
+  private def cleanDB = FactoryHedgehog.cleanAllFactories
 
   override def afterEach() {
     cleanDB
