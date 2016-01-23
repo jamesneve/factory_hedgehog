@@ -11,9 +11,9 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
 
 	val createdObjects = scala.collection.mutable.ListBuffer[IdType]()
 
-	private def build: CaseClassType = obj
+	 def build: CaseClassType = obj
 
-	private def buildWithValues(m: Map[String, Any]): CaseClassType = {
+	 def buildWithValues(m: Map[String, Any]): CaseClassType = {
 		if(m != null) {
 			val mm = collection.mutable.Map(m.toSeq: _*)
 			val mappedObject = dematerialise(obj)
@@ -22,7 +22,7 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
 		} else build
 	}
 
-	private def insertMappedObject(obj: CaseClassType): IdType = {
+	 def insertMappedObject(obj: CaseClassType): IdType = {
 		factoryDao match {
 			case Some(dao) => {
 				val finalObjectId = dao.insert(obj)
@@ -33,14 +33,14 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
 		}
 	}
 
-	private def create: CaseClassType = {
+	 def create: CaseClassType = {
 		factoryDao match {
 			case Some(dao) => dao.findById(buildAssociationTree(dematerialise(obj)))
 			case None => throw new UndefinedDaoException
 		}
 	}
 
-	private def createWithValues(m: Map[String, Any]): CaseClassType = {
+	 def createWithValues(m: Map[String, Any]): CaseClassType = {
 		factoryDao match {
 			case Some(dao) => {
 				if(m != null) {
@@ -54,7 +54,7 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
 		}
 	}
 
-	private def cleanCreatedObjects: Unit = {
+	 def cleanCreatedObjects: Unit = {
 		while(!createdObjects.isEmpty) {
 			val newId = createdObjects.head
 			delete(newId)
@@ -62,7 +62,7 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
 		}
 	}
 
-	private def delete(id: IdType): Boolean = {
+	 def delete(id: IdType): Boolean = {
 		factoryDao match {
 			case Some(dao) => {
 				dao.deleteById(id) match {
@@ -79,7 +79,7 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
 			case None => insertMappedObject(materialise(mappedObject, obj))
 			case Some(a) => {
 				for(association <- a) {
-					val foreignObjectFactory = Factory.get(association._1)
+					val foreignObjectFactory = FactoryHedgehog.get(association._1)
 					val mappedForeignObject = dematerialise(foreignObjectFactory.build)
 					mappedObject += (association._2 -> foreignObjectFactory.buildAssociationTree(mappedForeignObject))
 				}
@@ -88,14 +88,14 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
 		}
 	}
 
-	private def dematerialise(cc: Any): scala.collection.mutable.Map[String, Any] = {
+	 def dematerialise(cc: Any): scala.collection.mutable.Map[String, Any] = {
 		(scala.collection.mutable.Map[String, Any]() /: cc.getClass.getDeclaredFields) { (a, f) =>
 	    f.setAccessible(true)
 	    a + (f.getName -> f.get(cc))
 	  }
 	}
 
-  private def materialise(m: scala.collection.mutable.Map[String,Any], o: CaseClassType) : CaseClassType = {
+   def materialise(m: scala.collection.mutable.Map[String,Any], o: CaseClassType) : CaseClassType = {
   	try {
 	    val rm = runtimeMirror(o.getClass.getClassLoader)
 
@@ -122,42 +122,4 @@ class Factory[CaseClassType, IdType](obj: CaseClassType,
     	case e: InvocationTargetException => if(e.getCause() != null) throw e.getCause() else throw e
     }
   }
-}
-
-object Factory {
-	private val factories = scala.collection.mutable.Map[String, Factory[_, _]]()
-
-	def add(name: String, factory: Factory[_, _]) = {
-		if(!factories.contains(name)) factories += (name -> factory)
-
-	}
-
-	def get(name: String): Factory[_, _] = {
-		if(factories.contains(name)) factories(name)
-		else throw new NoFactoryException
-	}
-
-	def build[T: ClassTag](name: String, values: Map[String, Any] = null): T = {
-		if(factories.contains(name)) {
-			if(values == null) factories(name).build.asInstanceOf[T]
-			else factories(name).buildWithValues(values).asInstanceOf[T]
-		} else throw new NoFactoryException
-	}
-
-	def create[T: ClassTag](name: String, values: Map[String, Any] = null): T = {
-		if(factories.contains(name)) {
-			if(values == null) factories(name).create.asInstanceOf[T]
-			else factories(name).createWithValues(values).asInstanceOf[T]
-		} else throw new NoFactoryException
-	}
-
-	def cleanFactory(name: String): Unit = {
-		if(factories.contains(name)) {
-			factories(name).cleanCreatedObjects
-		} else throw new NoFactoryException
-	}
-
-	def cleanAllFactories: Unit = {
-		for(a <- factories) a._2.cleanCreatedObjects
-	}
 }
