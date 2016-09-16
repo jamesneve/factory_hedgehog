@@ -7,8 +7,7 @@ object FactoryHedgehog {
   private val factories = scala.collection.mutable.Map[String, Factory[_, _]]()
 
   def add[T: TypeTag, U](name: String, obj: T, factoryDao: Option[FactoryDAO[T, U]] = None, associations: Option[Vector[(String, String)]] = None): Unit = {
-    if(factories.contains(name)) throw new FactoryExistsException
-    else factories += (name -> new Factory(obj, typeOf[T], factoryDao, associations))
+    factories += (name -> new Factory(obj, typeOf[T], factoryDao, associations))
   }
 
   def add(name: String, factory: Factory[_, _]): Unit = {
